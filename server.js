@@ -13,6 +13,18 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
+// 플레이어 관리
+const players = new Map();
+const worlds = new Map();
+let wss = null;
+
+// 기본 월드 생성
+worlds.set('overworld', {
+  name: 'overworld',
+  spawn: { x: 0, y: 64, z: 0 },
+  players: new Set()
+});
+
 // 메인 상태 API
 app.get('/', (req, res) => {
   res.json({
@@ -21,11 +33,6 @@ app.get('/', (req, res) => {
     players: players.size,
     uptime: Math.floor(process.uptime())
   });
-});
-
-// 호스팅 패널 페이지 제공
-app.get('/panel', (req, res) => {
-  res.sendFile(path.join(__dirname, 'panel.html'));
 });
 
 // 서버 시작 API
@@ -63,19 +70,7 @@ app.post('/api/stop', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`HTTP 서버가 포트 ${PORT}에서 실행 중입니다`);
-  console.log(`호스팅 패널: http://localhost:${PORT}/panel`);
-});
-
-// 플레이어 관리
-const players = new Map();
-const worlds = new Map();
-let wss = null;
-
-// 기본 월드 생성
-worlds.set('overworld', {
-  name: 'overworld',
-  spawn: { x: 0, y: 64, z: 0 },
-  players: new Set()
+  console.log(`호스팅 패널: https://eaglerserverhost.onrender.com`);
 });
 
 // WebSocket 서버 시작 함수
@@ -87,22 +82,69 @@ function startWebSocketServer() {
 
   // Render에서는 HTTP와 같은 포트 사용
   wss = new WebSocket.Server({ 
-    port: PORT,
+    port: PORT + 1,
     path: '/ws'
   });
 
-  console.log(`마인크래프트 웹소켓 서버가 포트 ${PORT}에서 시작되었습니다`);
+  console.log(`마인크래프트 웹소켓 서버가 포트 ${PORT + 1}에서 시작되었습니다`);
 
   wss.on('connection', handleWebSocketConnection);
 }
 
 function handleWebSocketConnection(ws) {
   console.log('새로운 WebSocket 연결이 설정되었습니다');
+
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message);
+      const handler = packetHandlers[data.type];
+      
+      if (handler) {
+        handler(ws, data);
+      } else {
+        console.log(`알 수 없는 패킷 타입: ${data.type}`);
+      }
+    } catch (error) {
+      console.error('메시지 처리 오류:', error);
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: '잘못된 메시지 형식입니다'
+      }));
+    }
+  });
+
+  ws.on('close', () => {
+    if (ws.playerId) {
+      const player = players.get(ws.playerId);
+      if (player) {
+        // 플레이어 연결 해제 처리
+        player.connected = false;
+        worlds.get(player.world).players.delete(ws.playerId);
+        
+        // 다른 플레이어들에게 알림
+        broadcastToWorld(player.world, {
+          type: 'player_leave',
+          playerId: ws.playerId,
+          username: player.username
+        });
+
+        players.delete(ws.playerId);
+        console.log(`플레이어 ${player.username}가 연결을 해제했습니다`);
+      }
+    }
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket 오류:', error);
+  });
+}
+
+// 패킷 처리 함수들
 const packetHandlers = {
   // 관리자 연결 (호스팅 패널용)
   admin_connect: (ws, data) => {
     ws.isAdmin = true;
-    addLog('관리자 패널이 연결되었습니다');
+    console.log('관리자 패널이 연결되었습니다');
     
     // 현재 플레이어 목록 전송
     const playerList = Array.from(players.values()).map(p => ({
@@ -264,78 +306,6 @@ function broadcastToWorld(worldName, message, excludePlayerId = null) {
     });
   }
 }
-
-// WebSocket 연결 처리를 여기서 정의
-function handleWebSocketConnection(ws) {
-  console.log('새로운 WebSocket 연결이 설정되었습니다');
-
-  ws.on('message', (message) => {
-    try {
-      const data = JSON.parse(message);
-      const handler = packetHandlers[data.type];
-      
-      if (handler) {
-        handler(ws, data);
-      } else {
-        console.log(`알 수 없는 패킷 타입: ${data.type}`);
-      }
-    } catch (error) {
-      console.error('메시지 처리 오류:', error);
-      ws.send(JSON.stringify({
-        type: 'error',
-        message: '잘못된 메시지 형식입니다'
-      }));
-    }
-  });
-
-  ws.on('close', () => {
-    if (ws.playerId) {
-      const player = players.get(ws.playerId);
-      if (player) {
-        // 플레이어 연결 해제 처리
-        player.connected = false;
-        worlds.get(player.world).players.delete(ws.playerId);
-        
-        // 다른 플레이어들에게 알림
-        broadcastToWorld(player.world, {
-          type: 'player_leave',
-          playerId: ws.playerId,
-          username: player.username
-        });
-
-        players.delete(ws.playerId);
-        console.log(`플레이어 ${player.username}가 연결을 해제했습니다`);
-      }
-    }
-  });
-
-  ws.on('error', (error) => {
-    console.error('WebSocket 오류:', error);
-  });
-}
-
-// 패킷 처리 함수들if (player) {
-        // 플레이어 연결 해제 처리
-        player.connected = false;
-        worlds.get(player.world).players.delete(ws.playerId);
-        
-        // 다른 플레이어들에게 알림
-        broadcastToWorld(player.world, {
-          type: 'player_leave',
-          playerId: ws.playerId,
-          username: player.username
-        });
-
-        players.delete(ws.playerId);
-        console.log(`플레이어 ${player.username}가 연결을 해제했습니다`);
-      }
-    }
-  });
-
-  ws.on('error', (error) => {
-    console.error('WebSocket 오류:', error);
-  });
-});
 
 // 서버 상태 모니터링
 setInterval(() => {
