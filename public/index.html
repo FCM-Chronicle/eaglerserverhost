@@ -248,18 +248,21 @@
         </div>
 
         <div class="connection-info" id="connectionInfo" style="display: none;">
-            <h3>🔗 접속 정보</h3>
-            <p><strong>WebSocket URL:</strong> 
-                <code id="wsUrl">wss://your-server.onrender.com</code>
-                <button class="copy-button" onclick="copyToClipboard('wsUrl')">복사</button>
+            <h3>🔗 Eaglercraft 서버 접속 정보</h3>
+            <p><strong>서버 주소:</strong> 
+                <code id="wsUrl">wss://eaglerserverhost.onrender.com/ws</code>
+                <button class="copy-button" onclick="copyServerUrl()">📋 서버 주소 복사</button>
             </p>
-            <p><strong>HTTP URL:</strong> 
-                <code id="httpUrl">https://your-server.onrender.com</code>
-                <button class="copy-button" onclick="copyToClipboard('httpUrl')">복사</button>
-            </p>
-            <p style="margin-top: 15px; color: #666;">
-                친구들에게 WebSocket URL을 공유해서 함께 플레이하세요!
-            </p>
+            <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                <h4 style="margin: 0 0 10px 0; color: #2d5a2d;">🎮 친구들 접속 방법:</h4>
+                <ol style="margin: 0; color: #666;">
+                    <li>Eaglercraft 사이트에 접속</li>
+                    <li>"Multiplayer" 클릭</li>
+                    <li>"Add Server" 또는 "Direct Connect"</li>
+                    <li>위 서버 주소 붙여넣기</li>
+                    <li>접속!</li>
+                </ol>
+            </div>
         </div>
 
         <div class="players-section">
@@ -281,15 +284,11 @@
         let uptimeInterval = null;
 
         // 실제 Render URL로 변경하세요
-        const SERVER_URL = window.location.hostname;
+        const SERVER_URL = 'eaglerserverhost.onrender.com';
         
-        const WS_URL = window.location.protocol === 'https:' 
-            ? `wss://${SERVER_URL}/ws` 
-            : `ws://${SERVER_URL}:${window.location.port}/ws`;
+        const WS_URL = `wss://${SERVER_URL}/ws`;
         
-        const HTTP_URL = window.location.protocol === 'https:' 
-            ? `https://${SERVER_URL}` 
-            : `http://${SERVER_URL}:${window.location.port}`;
+        const HTTP_URL = `https://${SERVER_URL}`;
 
         function addLog(message) {
             const container = document.getElementById('logContainer');
@@ -313,7 +312,6 @@
             
             if (serverRunning) {
                 document.getElementById('wsUrl').textContent = WS_URL;
-                document.getElementById('httpUrl').textContent = HTTP_URL;
                 document.getElementById('connectionInfo').style.display = 'block';
             } else {
                 document.getElementById('connectionInfo').style.display = 'none';
@@ -374,8 +372,9 @@
                     stopBtn.style.display = 'inline-block';
                     
                     addLog('서버가 성공적으로 시작되었습니다!');
-                    addLog(`WebSocket 서버: ${WS_URL}`);
-                    addLog('친구들이 접속할 수 있습니다!');
+                    addLog(`Eaglercraft 서버 주소: ${WS_URL}`);
+                    addLog('친구들이 Eaglercraft로 접속할 수 있습니다!');
+                    addLog('📋 버튼을 클릭해서 서버 주소를 복사하세요!');
                     
                     // 가동시간 업데이트 시작
                     uptimeInterval = setInterval(updateUptime, 1000);
@@ -520,6 +519,34 @@
                     addLog(`블록 ${data.action}: (${data.x}, ${data.y}, ${data.z})`);
                     break;
             }
+        }
+
+        function copyServerUrl() {
+            const serverUrl = WS_URL;
+            
+            navigator.clipboard.writeText(serverUrl).then(() => {
+                const button = event.target;
+                const originalText = button.textContent;
+                const originalBg = button.style.background;
+                
+                button.textContent = '✅ 복사됨!';
+                button.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = originalBg || '#2196f3';
+                }, 2000);
+                
+                addLog('서버 주소가 클립보드에 복사되었습니다!');
+            }).catch(() => {
+                // 폴백: 텍스트 선택
+                const urlElement = document.getElementById('wsUrl');
+                const range = document.createRange();
+                range.selectNode(urlElement);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                addLog('서버 주소가 선택되었습니다. Ctrl+C로 복사하세요');
+            });
         }
 
         function copyToClipboard(elementId) {
