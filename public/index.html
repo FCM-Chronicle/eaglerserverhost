@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>역사 정리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .title {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .server-status {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 5px solid #28a745;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        .online {
+            background-color: #28a745;
+        }
+
+        .offline {
+            background-color: #dc3545;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .server-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+
+        .host-button {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.3em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+            min-width: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .host-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.4);
+        }
+
+        .host-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .stop-button {
+            background: linear-gradient(45deg, #dc3545, #fd7e14);
+        }
+
+        .stop-button:hover {
+            box-shadow: 0 10px 25px rgba(220, 53, 69, 0.4);
+        }
+
+        .connection-info {
+            background: #e3f2fd;
+            border: 2px dashed #2196f3;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .copy-button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: background 0.3s;
+        }
+
+        .copy-button:hover {
+            background: #1976d2;
+        }
+
+        .players-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .log-container {
+            background: #000;
+            color: #00ff00;
+            border-radius: 10px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .progress-bar {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 8px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            height: 100%;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .server-info {
+                grid-template-columns: 1fr;
+            }
+            .panel {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <h1 class="title">⚡ 마인크래프트 서버</h1>
+        <p class="subtitle">1.12.2 웹소켓 서버 호스팅 패널</p>
+
+        <div class="server-status" id="serverStatus">
+            <span class="status-indicator offline" id="statusIndicator"></span>
+            <strong id="statusText">서버 오프라인</strong>
+        </div>
+
+        <div class="server-info">
+            <div class="info-item">
+                <span class="info-label">서버 주소</span>
+                <span class="info-value" id="serverAddress">아직 시작되지 않음</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">접속 플레이어</span>
+                <span class="info-value" id="playerCount">0명</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">서버 가동시간</span>
+                <span class="info-value" id="uptime">00:00:00</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">서버 버전</span>
+                <span class="info-value">1.12.2 WebSocket</span>
+            </div>
+        </div>
+
+        <div>
+            <button class="host-button" id="startBtn" onclick="startServer()">
+                🚀 서버 시작하기
+            </button>
+            <button class="host-button stop-button" id="stopBtn" onclick="stopServer()" disabled>
+                🛑 서버 중지
+            </button>
+        </div>
+
+        <div class="connection-info" id="connectionInfo" style="display: none;">
+            <h3>🔗 접속 정보</h3>
+            <p><strong>WebSocket URL:</strong> 
+                <code id="wsUrl">wss://your-server.onrender.com</code>
+                <button class="copy-button" onclick="copyToClipboard('wsUrl')">복사</button>
+            </p>
+            <p><strong>HTTP URL:</strong> 
+                <code id="httpUrl">https://your-server.onrender.com</code>
+                <button class="copy-button" onclick="copyToClipboard('httpUrl')">복사</button>
+            </p>
+            <p style="margin-top: 15px; color: #666;">
+                친구들에게 WebSocket URL을 공유해서 함께 플레이하세요!
+            </p>
+        </div>
+
+        <div class="players-section">
+            <h3>👥 접속 중인 플레이어</h3>
+            <div id="playersList">접속한 플레이어가 없습니다</div>
+        </div>
+
+        <div class="log-container" id="logContainer">
+            <div>마인크래프트 서버 로그</div>
+            <div>서버를 시작하면 로그가 여기에 표시됩니다...</div>
+        </div>
+    </div>
+
+    <script>
+        let serverRunning = false;
+        let ws = null;
+        let players = new Map();
+        let startTime = null;
+        let uptimeInterval = null;
+
+        // 실제 Render URL로 변경하세요
+        const SERVER_URL = window.location.hostname;
+        
+        const WS_URL = window.location.protocol === 'https:' 
+            ? `wss://${SERVER_URL}/ws` 
+            : `ws://${SERVER_URL}:${window.location.port}/ws`;
+        
+        const HTTP_URL = window.location.protocol === 'https:' 
+            ? `https://${SERVER_URL}` 
+            : `http://${SERVER_URL}:${window.location.port}`;
+
+        function addLog(message) {
+            const container = document.getElementById('logContainer');
+            const logLine = document.createElement('div');
+            logLine.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            container.appendChild(logLine);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateStatus(online, text) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            indicator.className = `status-indicator ${online ? 'online' : 'offline'}`;
+            statusText.textContent = text;
+        }
+
+        function updateServerInfo() {
+            document.getElementById('serverAddress').textContent = serverRunning ? SERVER_URL : '아직 시작되지 않음';
+            document.getElementById('playerCount').textContent = `${players.size}명`;
+            
+            if (serverRunning) {
+                document.getElementById('wsUrl').textContent = WS_URL;
+                document.getElementById('httpUrl').textContent = HTTP_URL;
+                document.getElementById('connectionInfo').style.display = 'block';
+            } else {
+                document.getElementById('connectionInfo').style.display = 'none';
+            }
+        }
+
+        function updateUptime() {
+            if (startTime) {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const hours = Math.floor(elapsed / 3600);
+                const minutes = Math.floor((elapsed % 3600) / 60);
+                const seconds = elapsed % 60;
+                
+                document.getElementById('uptime').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function updatePlayersList() {
+            const container = document.getElementById('playersList');
+            
+            if (players.size === 0) {
+                container.textContent = '접속한 플레이어가 없습니다';
+            } else {
+                container.innerHTML = Array.from(players.values())
+                    .map(player => `<div>🧑‍💻 ${player.username} - (${player.x}, ${player.y}, ${player.z})</div>`)
+                    .join('');
+            }
+        }
+
+        async function startServer() {
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            startBtn.disabled = true;
+            startBtn.textContent = '🔄 서버 시작 중...';
+            
+            addLog('서버 시작 요청을 보내는 중...');
+
+            try {
+                // 실제 서버 시작 (Render에서는 자동으로 실행됨)
+                const response = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    serverRunning = true;
+                    startTime = Date.now();
+                    
+                    updateStatus(true, '서버 온라인 ✅');
+                    updateServerInfo();
+                    
+                    startBtn.style.display = 'none';
+                    stopBtn.disabled = false;
+                    stopBtn.style.display = 'inline-block';
+                    
+                    addLog('서버가 성공적으로 시작되었습니다!');
+                    addLog(`WebSocket 서버: ${WS_URL}`);
+                    addLog('친구들이 접속할 수 있습니다!');
+                    
+                    // 가동시간 업데이트 시작
+                    uptimeInterval = setInterval(updateUptime, 1000);
+                    
+                    // 서버 모니터링 시작
+                    startMonitoring();
+                    
+                } else {
+                    throw new Error('서버 시작 실패');
+                }
+                
+            } catch (error) {
+                addLog(`오류: ${error.message}`);
+                startBtn.disabled = false;
+                startBtn.textContent = '🚀 서버 시작하기';
+            }
+        }
+
+        async function stopServer() {
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            stopBtn.disabled = true;
+            stopBtn.textContent = '🔄 서버 중지 중...';
+            
+            addLog('서버 중지 요청을 보내는 중...');
+
+            try {
+                // 연결된 플레이어들에게 알림
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    players.forEach(player => {
+                        addLog(`플레이어 ${player.username} 연결 해제`);
+                    });
+                    ws.close();
+                }
+
+                // 서버 중지 요청
+                await fetch('/api/stop', {
+                    method: 'POST'
+                });
+
+                serverRunning = false;
+                startTime = null;
+                players.clear();
+                
+                updateStatus(false, '서버 오프라인');
+                updateServerInfo();
+                updatePlayersList();
+                
+                startBtn.style.display = 'inline-block';
+                startBtn.disabled = false;
+                startBtn.textContent = '🚀 서버 시작하기';
+                stopBtn.style.display = 'none';
+                
+                addLog('서버가 중지되었습니다');
+                
+                if (uptimeInterval) {
+                    clearInterval(uptimeInterval);
+                    uptimeInterval = null;
+                }
+                
+                document.getElementById('uptime').textContent = '00:00:00';
+                
+            } catch (error) {
+                addLog(`중지 오류: ${error.message}`);
+                stopBtn.disabled = false;
+                stopBtn.textContent = '🛑 서버 중지';
+            }
+        }
+
+        function startMonitoring() {
+            // 서버 상태 모니터링용 WebSocket 연결
+            try {
+                ws = new WebSocket(WS_URL);
+                
+                ws.onopen = () => {
+                    addLog('서버 모니터링 연결 성공');
+                    // 관리자 모드로 접속
+                    ws.send(JSON.stringify({
+                        type: 'admin_connect'
+                    }));
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleServerEvent(data);
+                    } catch (error) {
+                        console.error('모니터링 메시지 파싱 오류:', error);
+                    }
+                };
+                
+                ws.onclose = () => {
+                    addLog('모니터링 연결이 끊어졌습니다');
+                    setTimeout(() => {
+                        if (serverRunning) {
+                            startMonitoring(); // 재연결 시도
+                        }
+                    }, 5000);
+                };
+                
+                ws.onerror = (error) => {
+                    addLog('모니터링 연결 오류');
+                };
+                
+            } catch (error) {
+                addLog('모니터링 시작 실패: ' + error.message);
+            }
+        }
+
+        function handleServerEvent(data) {
+            switch (data.type) {
+                case 'player_join':
+                    players.set(data.player.id, data.player);
+                    updatePlayersList();
+                    updateServerInfo();
+                    addLog(`${data.player.username}님이 서버에 접속했습니다`);
+                    break;
+                    
+                case 'player_leave':
+                    players.delete(data.playerId);
+                    updatePlayersList();
+                    updateServerInfo();
+                    addLog(`${data.username}님이 서버에서 나갔습니다`);
+                    break;
+                    
+                case 'player_move':
+                    const player = players.get(data.playerId);
+                    if (player) {
+                        player.x = data.x;
+                        player.y = data.y;
+                        player.z = data.z;
+                        updatePlayersList();
+                    }
+                    break;
+                    
+                case 'chat':
+                    addLog(`[채팅] ${data.username}: ${data.message}`);
+                    break;
+                    
+                case 'block_update':
+                    addLog(`블록 ${data.action}: (${data.x}, ${data.y}, ${data.z})`);
+                    break;
+            }
+        }
+
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const button = element.nextElementSibling;
+                const originalText = button.textContent;
+                button.textContent = '복사됨!';
+                button.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#2196f3';
+                }, 2000);
+            }).catch(() => {
+                // 폴백: 텍스트 선택
+                const range = document.createRange();
+                range.selectNode(element);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                addLog('URL이 선택되었습니다. Ctrl+C로 복사하세요');
+            });
+        }
+
+        // 페이지 로드 시 서버 상태 확인
+        window.onload = async () => {
+            addLog('호스팅 패널이 로드되었습니다');
+            
+            try {
+                const response = await fetch('/');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 'online') {
+                        // 서버가 이미 실행 중인 경우
+                        serverRunning = true;
+                        startTime = Date.now() - (data.uptime * 1000);
+                        
+                        updateStatus(true, '서버 온라인 ✅');
+                        updateServerInfo();
+                        
+                        document.getElementById('startBtn').style.display = 'none';
+                        document.getElementById('stopBtn').disabled = false;
+                        document.getElementById('stopBtn').style.display = 'inline-block';
+                        
+                        uptimeInterval = setInterval(updateUptime, 1000);
+                        startMonitoring();
+                        
+                        addLog('기존에 실행 중인 서버를 감지했습니다');
+                    }
+                }
+            } catch (error) {
+                addLog('서버 상태 확인 실패: ' + error.message);
+            }
+        };
+
+        // 페이지 종료 시 정리
+        window.onbeforeunload = () => {
+            if (ws) {
+                ws.close();
+            }
+            if (uptimeInterval) {
+                clearInterval(uptimeInterval);
+            }
+        };
+    </script>
+</body>
+</html>
